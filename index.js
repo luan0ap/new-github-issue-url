@@ -1,43 +1,44 @@
-'use strict';
-
-module.exports = (options = {}) => {
-	let repoUrl;
-	if (options.repoUrl) {
-		repoUrl = options.repoUrl;
-	} else if (options.user && options.repo) {
-		repoUrl = `https://github.com/${options.user}/${options.repo}`;
-	} else {
-		throw new Error('You need to specify either the `repoUrl` option or both the `user` and `repo` options');
+class GithubIssueUrl {
+	constructor({ repositoryUrl = '', user = '', repository = '', type = 'title', body }) {
+		this.repositoryUrl = repositoryUrl
+		this.repository = repository
+		this.user = user
+		this.type = type
+		this.body = body
 	}
 
-	const url = new URL(`${repoUrl}/issues/new`);
+	isValidType(type, cb) {
+		const types = [
+			'body',
+			'title',
+			'labels',
+			'template',
+			'milestone',
+			'assignee',
+			'projects'
+		]
 
-	const types = [
-		'body',
-		'title',
-		'labels',
-		'template',
-		'milestone',
-		'assignee',
-		'projects'
-	];
+		return cb(types.find(t => t === type))
+	}
 
-	for (const type of types) {
-		let value = options[type];
-		if (value === undefined) {
-			continue;
-		}
+	get issueUrl() {
 
-		if (type === 'labels' || type === 'projects') {
-			if (!Array.isArray(value)) {
-				throw new TypeError(`The \`${type}\` option should be an array`);
+		const url = new URL(this.repositoryUrl ? `${this.repositoryUrl}/issues/new` : `https://github.com/${this.user}/${this.repository}/issues/new`)
+
+		this.isValidType(this.type, (name) => {
+			if (name === 'labels' || name === 'projects') {
+				if (!Array.isArray(this.body)) {
+					throw new TypeError(`The \`${name}\` option should be an array`)
+				}
+
+				url.searchParams.set(this.type, this.body.join(','))
 			}
 
-			value = value.join(',');
-		}
+			url.searchParams.set(this.type, this.body)
+		})
 
-		url.searchParams.set(type, value);
+		return url.toString()
 	}
+}
 
-	return url.toString();
-};
+module.exports = GithubIssueUrl
